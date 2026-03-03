@@ -1,0 +1,39 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_tienda
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: tienda
+      MYSQL_USER: tienda_user
+      MYSQL_PASSWORD: tienda_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama_tienda
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  api:
+    build: ./api
+    container_name: api_tienda
+    restart: always
+    env_file:
+      - ./.env
+    depends_on:
+      - mysql
+    ports:
+      - "8000:8000"
+
+volumes:
+  mysql_data: 
+  ollama_data:
