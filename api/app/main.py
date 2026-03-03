@@ -9,7 +9,7 @@ import re
 from decimal import Decimal
 from datetime import date, datetime
 
-load_dotenv()  # carga .env
+load_dotenv()
 
 app = FastAPI(title="Mini Tienda API")
 
@@ -29,7 +29,6 @@ def get_conn():
 
 @app.get("/health")
 def health():
-    # Comprueba que MySQL responde
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -86,27 +85,22 @@ ALLOWED_TABLES = {"productos", "inventario", "clientes", "ventas", "venta_lineas
 def basic_sql_guard(sql: str) -> str:
     s = sql.strip()
 
-    # Prohibir ; y comentarios
     if ";" in s or "--" in s or "/*" in s:
         raise HTTPException(400, "SQL inválida (caracteres no permitidos).")
 
     low = s.lower()
 
-    # Solo SELECT
     if not low.startswith("select"):
         raise HTTPException(400, "Solo se permiten consultas SELECT.")
 
-    # Prohibir keywords peligrosas
     forbidden = [" drop ", " delete ", " update ", " insert ", " alter ", " truncate ", " create "]
     if any(f in f" {low} " for f in forbidden):
         raise HTTPException(400, "SQL contiene operaciones no permitidas.")
 
-    # Verificar que solo use tablas permitidas (check simple)
     tables = set(re.findall(r"(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_]*)", low))
     if not tables.issubset(ALLOWED_TABLES):
         raise HTTPException(400, f"Tablas no permitidas: {sorted(tables - ALLOWED_TABLES)}")
 
-    # Forzar LIMIT si no existe
     if " limit " not in f" {low} ":
         s = s + " LIMIT 50"
 
@@ -115,12 +109,10 @@ def basic_sql_guard(sql: str) -> str:
 def extract_json(text: str) -> dict:
     t = text.strip()
 
-    # Caso 1: viene como ```json ... ```
     m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", t, flags=re.DOTALL | re.IGNORECASE)
     if m:
         t = m.group(1).strip()
 
-    # Caso 2: si aún no es JSON puro, intenta recortar desde primera { hasta última }
     if not t.startswith("{"):
         start = t.find("{")
         end = t.rfind("}")
@@ -131,7 +123,6 @@ def extract_json(text: str) -> dict:
 
 @app.post("/ask")
 def ask(req: AskRequest):
-    # Prompt “contrato”: SOLO JSON
     system = (
         "Eres un generador de SQL para MySQL. Devuelve SOLO JSON válido con la clave 'sql'. "
         "No incluyas texto extra. Solo SELECT. No uses ';'.\n"
@@ -174,7 +165,6 @@ def ask(req: AskRequest):
 
     sql_safe = basic_sql_guard(sql)
 
-    # Ejecutar SQL
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -200,7 +190,6 @@ def json_safe(obj):
 
 @app.post("/ask/answer")
 def ask_answer(req: AskRequest):
-    # ====== 1) Generar SQL (igual que /ask) ======
     system_sql = (
         "Eres un generador de SQL para MySQL. Devuelve SOLO JSON válido con la clave 'sql'. "
         "No incluyas texto extra. Solo SELECT. No uses ';'.\n"
@@ -242,7 +231,6 @@ def ask_answer(req: AskRequest):
 
     sql_safe = basic_sql_guard(sql)
 
-    # ====== 2) Ejecutar SQL ======
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -251,10 +239,8 @@ def ask_answer(req: AskRequest):
     finally:
         conn.close()
 
-    # Recortar para no mandar 2000 filas al modelo
     preview_rows = rows[:50]
 
-    # ====== 3) Redactar respuesta “bonita” ======
     system_answer = (
         "Eres un asistente de análisis de datos de un pequeño comercio. "
         "Responde en español, claro y profesional.\n"

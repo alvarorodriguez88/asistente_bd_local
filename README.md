@@ -34,7 +34,7 @@ No es necesario tener Python ni MySQL instalados localmente.
 # 3. Instalación
 
 ```bash
-git clone https://github.com/TU_USUARIO/TU_REPO.git
+git clone https://github.com/alvarorodriguez88/asistente_bd_local.git
 cd asistente_bd_local
 
 cp .env.example .env
